@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { devisApi, clientsApi, vehiculesApi, articlesApi } from '@/lib/api';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { devisApi, clientsApi, vehiculesApi, articlesApi, pdfApi } from '@/lib/api';
+import { Plus, Pencil, Trash2, X, ArrowRightCircle, FileDown, Mail } from 'lucide-react';
 
 interface DevisItem {
   id: number;
@@ -105,6 +105,45 @@ export default function Devis() {
 
   const handleDelete = async (id: number) => { if (confirm('Supprimer ce devis ?')) { await devisApi.delete(id); load(); } };
 
+  const handleConvertBT = async (id: number, numero: string) => {
+    if (confirm(`Convertir le devis ${numero} en bon de travail ?`)) {
+      try {
+        const res = await devisApi.convertirBT(id);
+        alert(`${res.data.message}`);
+        load();
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { detail?: string } } };
+        alert(err.response?.data?.detail || 'Erreur lors de la conversion');
+      }
+    }
+  };
+
+  const handleDownloadPDF = async (id: number, numero: string) => {
+    try {
+      const res = await pdfApi.downloadDevis(id);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Devis_${numero}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch { alert('Erreur lors de la génération du PDF'); }
+  };
+
+  const handleSendEmail = async (id: number, numero: string) => {
+    if (confirm(`Envoyer le devis ${numero} par email au client ?`)) {
+      try {
+        const res = await pdfApi.emailDevis(id);
+        alert(res.data.message);
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { detail?: string } } };
+        alert(err.response?.data?.detail || 'Erreur lors de l\'envoi');
+      }
+    }
+  };
+
   const filteredVehicules = form.client_id ? vehicules.filter((v) => v.client_id === Number(form.client_id)) : vehicules;
 
   const calcTotal = () => form.lignes.reduce((sum, l) => sum + (parseFloat(l.quantite) || 0) * (parseFloat(l.prix_unitaire) || 0), 0);
@@ -141,9 +180,14 @@ export default function Devis() {
                   <td className="px-4 py-3 text-slate-600">{d.date_devis}</td>
                   <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded-full ${statutColors[d.statut] || 'bg-gray-100'}`}>{statutLabels[d.statut] || d.statut}</span></td>
                   <td className="px-4 py-3 text-right font-medium">{d.total.toFixed(2)} $</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-1">
+                    {d.statut !== 'converti' && (
+                      <button onClick={() => handleConvertBT(d.id, d.numero)} title="Convertir en bon de travail" className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded"><ArrowRightCircle size={16} /></button>
+                    )}
+                    <button onClick={() => handleDownloadPDF(d.id, d.numero)} title="Télécharger PDF" className="p-1.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded"><FileDown size={16} /></button>
+                    <button onClick={() => handleSendEmail(d.id, d.numero)} title="Envoyer par email" className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded"><Mail size={16} /></button>
                     <button onClick={() => openEdit(d)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded"><Pencil size={16} /></button>
-                    <button onClick={() => handleDelete(d.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded ml-1"><Trash2 size={16} /></button>
+                    <button onClick={() => handleDelete(d.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
                   </td>
                 </tr>
               ))}

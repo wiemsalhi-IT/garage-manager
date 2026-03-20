@@ -99,6 +99,40 @@ def update_devis(devis_id: int, data: DevisUpdate, db: Session = Depends(get_db)
     return devis
 
 
+@router.post("/{devis_id}/convertir-bt", status_code=201)
+def convertir_devis_en_bt(devis_id: int, db: Session = Depends(get_db)):
+    """Convertir un devis accepté en bon de travail."""
+    from app.models.bon_travail import BonTravail, BonTravailLigne
+    devis = db.query(Devis).options(joinedload(Devis.lignes)).filter(Devis.id == devis_id).first()
+    if not devis:
+        raise HTTPException(status_code=404, detail="Devis non trouvé")
+    if devis.statut not in ("accepte", "brouillon", "envoye"):
+        raise HTTPException(status_code=400, detail="Seul un devis accepté/brouillon/envoyé peut être converti")
+
+    numero_bt = generer_numero(db, BonTravail, "BT")
+    bt = BonTravail(
+        numero=numero_bt,
+        devis_id=devis.id,
+        client_id=devis.client_id,
+        vehicule_id=devis.vehicule_id,
+        notes=f"Créé depuis devis {devis.numero}",
+    )
+    for ligne in devis.lignes:
+        bt.lignes.append(BonTravailLigne(
+            article_id=ligne.article_id,
+            description=ligne.description,
+            quantite=ligne.quantite,
+            prix_unitaire=ligne.prix_unitaire,
+            total=ligne.total,
+        ))
+
+    devis.statut = StatutDevis.CONVERTI
+    db.add(bt)
+    db.commit()
+    db.refresh(bt)
+    return {"message": f"Bon de travail {bt.numero} créé", "bon_travail_id": bt.id, "numero": bt.numero}
+
+
 @router.delete("/{devis_id}", status_code=204)
 def delete_devis(devis_id: int, db: Session = Depends(get_db)):
     devis = db.query(Devis).filter(Devis.id == devis_id).first()

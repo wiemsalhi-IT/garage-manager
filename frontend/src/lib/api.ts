@@ -52,6 +52,7 @@ export const devisApi = {
   create: (data: Record<string, unknown>) => api.post('/api/devis', data),
   update: (id: number, data: Record<string, unknown>) => api.put(`/api/devis/${id}`, data),
   delete: (id: number) => api.delete(`/api/devis/${id}`),
+  convertirBT: (id: number) => api.post(`/api/devis/${id}/convertir-bt`),
 };
 
 // Bons de travail
@@ -61,6 +62,7 @@ export const bonsTravailApi = {
   create: (data: Record<string, unknown>) => api.post('/api/bons-travail', data),
   update: (id: number, data: Record<string, unknown>) => api.put(`/api/bons-travail/${id}`, data),
   delete: (id: number) => api.delete(`/api/bons-travail/${id}`),
+  convertirFacture: (id: number) => api.post(`/api/bons-travail/${id}/convertir-facture`),
 };
 
 // Factures de vente
@@ -109,6 +111,16 @@ export const rapportsApi = {
   revenus: (params?: Record<string, string>) => api.get('/api/rapports/revenus', { params }),
   stock: () => api.get('/api/rapports/stock'),
   activite: (params?: Record<string, string>) => api.get('/api/rapports/activite', { params }),
+};
+
+// PDF & Email
+export const pdfApi = {
+  downloadDevis: (id: number) => api.get(`/api/pdf/devis/${id}`, { responseType: 'blob' }),
+  downloadFacture: (id: number) => api.get(`/api/pdf/facture/${id}`, { responseType: 'blob' }),
+  downloadBonTravail: (id: number) => api.get(`/api/pdf/bon-travail/${id}`, { responseType: 'blob' }),
+  emailDevis: (id: number, toEmail?: string) => api.post(`/api/pdf/email/devis/${id}`, { to_email: toEmail || null }),
+  emailFacture: (id: number, toEmail?: string) => api.post(`/api/pdf/email/facture/${id}`, { to_email: toEmail || null }),
+  emailStatus: () => api.get('/api/pdf/email/status'),
 };
 
 export default api;
