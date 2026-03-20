@@ -14,6 +14,7 @@ from app.routers import (
     paiements,
     dashboard,
     rapports,
+    pdf,
 )
 
 app = FastAPI(
@@ -44,6 +45,7 @@ app.include_router(factures_achat.router)
 app.include_router(paiements.router)
 app.include_router(dashboard.router)
 app.include_router(rapports.router)
+app.include_router(pdf.router)
 
 
 @app.on_event("startup")

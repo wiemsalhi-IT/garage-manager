@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { bonsTravailApi, clientsApi, vehiculesApi, articlesApi } from '@/lib/api';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { bonsTravailApi, clientsApi, vehiculesApi, articlesApi, pdfApi } from '@/lib/api';
+import { Plus, Pencil, Trash2, X, ArrowRightCircle, FileDown } from 'lucide-react';
 
 interface BonTravail {
   id: number;
@@ -92,6 +92,33 @@ export default function BonsTravail() {
 
   const handleDelete = async (id: number) => { if (confirm('Supprimer ?')) { await bonsTravailApi.delete(id); load(); } };
 
+  const handleConvertFacture = async (id: number, numero: string) => {
+    if (confirm(`Convertir le bon ${numero} en facture ?`)) {
+      try {
+        const res = await bonsTravailApi.convertirFacture(id);
+        alert(`${res.data.message}`);
+        load();
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { detail?: string } } };
+        alert(err.response?.data?.detail || 'Erreur lors de la conversion');
+      }
+    }
+  };
+
+  const handleDownloadPDF = async (id: number, numero: string) => {
+    try {
+      const res = await pdfApi.downloadBonTravail(id);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `BT_${numero}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch { alert('Erreur lors de la génération du PDF'); }
+  };
+
   const filteredVehicules = form.client_id ? vehicules.filter((v) => v.client_id === Number(form.client_id)) : vehicules;
 
   return (
@@ -126,9 +153,13 @@ export default function BonsTravail() {
                   <td className="px-4 py-3 text-slate-600">{bt.date_debut}</td>
                   <td className="px-4 py-3 text-slate-600">{bt.technicien}</td>
                   <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded-full ${statutColors[bt.statut] || 'bg-gray-100'}`}>{bt.statut}</span></td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-1">
+                    {bt.statut !== 'facture' && (
+                      <button onClick={() => handleConvertFacture(bt.id, bt.numero)} title="Convertir en facture" className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded"><ArrowRightCircle size={16} /></button>
+                    )}
+                    <button onClick={() => handleDownloadPDF(bt.id, bt.numero)} title="Télécharger PDF" className="p-1.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded"><FileDown size={16} /></button>
                     <button onClick={() => openEdit(bt)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded"><Pencil size={16} /></button>
-                    <button onClick={() => handleDelete(bt.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded ml-1"><Trash2 size={16} /></button>
+                    <button onClick={() => handleDelete(bt.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
                   </td>
                 </tr>
               ))}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { facturesVenteApi, clientsApi, vehiculesApi, articlesApi } from '@/lib/api';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { facturesVenteApi, clientsApi, vehiculesApi, articlesApi, pdfApi } from '@/lib/api';
+import { Plus, Pencil, Trash2, X, FileDown, Mail } from 'lucide-react';
 
 interface Facture {
   id: number; numero: string; client_id: number; vehicule_id: number | null; date_facture: string | null;
@@ -75,6 +75,32 @@ export default function FacturesVente() {
   };
 
   const handleDelete = async (id: number) => { if (confirm('Supprimer ?')) { await facturesVenteApi.delete(id); load(); } };
+
+  const handleDownloadPDF = async (id: number, numero: string) => {
+    try {
+      const res = await pdfApi.downloadFacture(id);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Facture_${numero}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch { alert('Erreur lors de la génération du PDF'); }
+  };
+
+  const handleSendEmail = async (id: number, numero: string) => {
+    if (confirm(`Envoyer la facture ${numero} par email au client ?`)) {
+      try {
+        const res = await pdfApi.emailFacture(id);
+        alert(res.data.message);
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { detail?: string } } };
+        alert(err.response?.data?.detail || 'Erreur lors de l\'envoi');
+      }
+    }
+  };
   const filteredVehicules = form.client_id ? vehicules.filter((v) => v.client_id === Number(form.client_id)) : vehicules;
   const calcTotal = () => form.lignes.reduce((s, l) => s + (parseFloat(l.quantite) || 0) * (parseFloat(l.prix_unitaire) || 0), 0);
 
@@ -112,9 +138,11 @@ export default function FacturesVente() {
                   <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded-full ${statutColors[f.statut] || 'bg-gray-100'}`}>{f.statut}</span></td>
                   <td className="px-4 py-3 text-right font-medium">{f.total.toFixed(2)} $</td>
                   <td className="px-4 py-3 text-right text-slate-600">{f.montant_paye.toFixed(2)} $</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-1">
+                    <button onClick={() => handleDownloadPDF(f.id, f.numero)} title="Télécharger PDF" className="p-1.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded"><FileDown size={16} /></button>
+                    <button onClick={() => handleSendEmail(f.id, f.numero)} title="Envoyer par email" className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded"><Mail size={16} /></button>
                     <button onClick={() => openEdit(f)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded"><Pencil size={16} /></button>
-                    <button onClick={() => handleDelete(f.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded ml-1"><Trash2 size={16} /></button>
+                    <button onClick={() => handleDelete(f.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
                   </td>
                 </tr>
               ))}
